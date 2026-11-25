@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PIL import Image
-from PyQt6.QtCore import QSettings, Qt, QThread, QTimer, QUrl, pyqtSignal
+from PyQt6.QtCore import QRectF, QSettings, Qt, QThread, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices, QGuiApplication, QKeySequence, QPixmap, QShortcut
 from PyQt6.QtWidgets import (
     QButtonGroup,
@@ -26,6 +26,7 @@ from nrseed.gamedata import NIGHTLORDS, TERRAINS, summarize
 from nrseed.ui import theme
 from nrseed.ui.manual import ManualController
 from nrseed.ui.mapview import MapView, pil_to_pixmap
+from nrseed.ui.ornate import OrnateBackground
 from nrseed.ui.overlay import GameOverlay, RegionSelector
 from nrseed.ui.sidebar import CandidatesCard, InfoCard, ManualPanel, NightlordCard, SeedCard
 from nrseed.worker import RecognitionResult, RecognizerWorker
@@ -92,8 +93,8 @@ class MainWindow(QMainWindow):
 
     # =========================================================== UI
     def _build_ui(self) -> None:
-        root = QWidget()
-        root.setObjectName("root")
+        root = OrnateBackground()
+        self.bg = root
         self.setCentralWidget(root)
         v = QVBoxLayout(root)
         v.setContentsMargins(0, 0, 0, 0)
@@ -102,14 +103,14 @@ class MainWindow(QMainWindow):
         # ---- cabeçalho
         header = QFrame()
         header.setObjectName("Header")
-        header.setFixedHeight(64)
+        header.setFixedHeight(76)
         h = QHBoxLayout(header)
-        h.setContentsMargins(20, 0, 16, 0)
+        h.setContentsMargins(22, 6, 20, 0)
         h.setSpacing(14)
         logo = QLabel()
         logo.setPixmap(
-            QPixmap(str(theme.asset("icon.png"))).scaled(
-                44, 44, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+            QPixmap(str(theme.asset("logo_header.png"))).scaled(
+                50, 50, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
             )
         )
         h.addWidget(logo)
@@ -117,10 +118,11 @@ class MainWindow(QMainWindow):
         tcol.setSpacing(0)
         t = QLabel("NIGHTREIGN")
         t.setObjectName("AppTitle")
-        t.setFont(theme.title_font(18, 700))
+        t.setFont(theme.title_font(21, 500))
         s = QLabel("LEITOR DE SEED")
         s.setObjectName("AppSub")
-        s.setFont(theme.title_font(8, 600))
+        s.setFont(theme.title_font(8, 500))
+        s.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         tcol.addStretch()
         tcol.addWidget(t)
         tcol.addWidget(s)
@@ -134,7 +136,7 @@ class MainWindow(QMainWindow):
         for i, b in enumerate((self.tab_result, self.tab_manual)):
             b.setObjectName("Tab")
             b.setCheckable(True)
-            b.setFont(theme.title_font(10, 700))
+            b.setFont(theme.title_font(10, 600))
             self.tab_group.addButton(b, i)
             h.addWidget(b)
         self.tab_result.setChecked(True)
@@ -143,7 +145,7 @@ class MainWindow(QMainWindow):
 
         pill = QFrame()
         pill.setObjectName("StatusPill")
-        pill.setFixedHeight(30)
+        pill.setFixedHeight(32)
         ph = QHBoxLayout(pill)
         ph.setContentsMargins(10, 2, 12, 2)
         ph.setSpacing(8)
@@ -177,7 +179,7 @@ class MainWindow(QMainWindow):
 
         side = QFrame()
         side.setObjectName("Sidebar")
-        side.setFixedWidth(360)
+        side.setFixedWidth(372)
         sv = QVBoxLayout(side)
         sv.setContentsMargins(0, 0, 0, 0)
         self.side_stack = QStackedWidget()
@@ -187,8 +189,8 @@ class MainWindow(QMainWindow):
         # página resultado
         page = QWidget()
         pv = QVBoxLayout(page)
-        pv.setContentsMargins(14, 14, 14, 14)
-        pv.setSpacing(10)
+        pv.setContentsMargins(14, 8, 10, 14)
+        pv.setSpacing(12)
         self.nl_card = NightlordCard()
         self.seed_card = SeedCard()
         self.info_card = InfoCard()
@@ -213,8 +215,8 @@ class MainWindow(QMainWindow):
         # página manual
         mpage = QWidget()
         mv = QVBoxLayout(mpage)
-        mv.setContentsMargins(14, 14, 14, 14)
-        mv.setSpacing(10)
+        mv.setContentsMargins(14, 8, 10, 14)
+        mv.setSpacing(12)
         self.manual_panel = ManualPanel()
         mv.addWidget(self.manual_panel)
         self.manual_cands = CandidatesCard()
@@ -227,25 +229,42 @@ class MainWindow(QMainWindow):
 
         self.map_view = MapView()
         body.addWidget(self.map_view, 1)
+        body.addSpacing(14)
+        root.anchor_widget = self.map_view
+        self.map_view.ring_provider = self._ring_in_view
+        self.map_view.image_changed.connect(lambda _has: self._set_dim())
 
         # ---- rodapé
         foot = QLabel(
             "F8 ler agora  ·  F9 overlay no jogo  ·  F10 próximo candidato  ·  "
             "roda do mouse = zoom  ·  arrastar = mover  ·  duplo clique = ajustar"
         )
-        foot.setObjectName("Muted")
-        foot.setContentsMargins(16, 6, 16, 6)
-        foot.setStyleSheet(f"background:{theme.PANEL}; border-top:1px solid {theme.BORDER};")
+        foot.setContentsMargins(26, 8, 26, 12)
+        foot.setStyleSheet(f"background: transparent; color: {theme.MUTED}; font-size: 9pt;")
         v.addWidget(foot)
 
         QShortcut(QKeySequence("F8"), self, activated=self._read_now)
         QShortcut(QKeySequence("F10"), self, activated=self._next_candidate)
+
+    def _ring_in_view(self):
+        r = self.bg.ring_rect()
+        if r is None:
+            return None
+        tl = self.map_view.viewport().mapFrom(self.bg, r.topLeft().toPoint())
+        return QRectF(tl.x(), tl.y(), r.width(), r.height())
+
+    def _set_dim(self) -> None:
+        self.bg.dim = 0.55 if self.map_view.has_image() else 0.0
+        self.bg.update()
 
     def _scroll(self, w: QWidget) -> QScrollArea:
         sa = QScrollArea()
         sa.setWidgetResizable(True)
         sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         sa.setWidget(w)
+        sa.viewport().setAutoFillBackground(False)
+        w.setAutoFillBackground(False)
+        sa.setStyleSheet("QScrollArea, QScrollArea > QWidget > QWidget { background: transparent; }")
         return sa
 
     def _prefer_second_monitor(self) -> None:

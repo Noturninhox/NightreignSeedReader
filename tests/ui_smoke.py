@@ -14,9 +14,11 @@ from nrseed.engine.manual_catalog import PoiChoice
 
 sample, out = sys.argv[1], sys.argv[2]
 mode = sys.argv[3] if len(sys.argv) > 3 else "auto"
-w = MainWindow(); w.resize(1500, 950); w.show()
+w = MainWindow(); w.resize(1326, 1150); w.show()
 
 def go():
+    if mode == "empty":
+        return
     if mode.startswith("manual"):
         w.tab_manual.click()
         w.manual_panel.select(6, 1); w.manual_panel.changed.emit()

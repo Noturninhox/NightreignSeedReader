@@ -120,15 +120,15 @@ def _island_bg(es: int, size: int) -> Image.Image:
     outside_w = (1 - soft)[..., None]
     out = out * (1 - outside_w) + np.maximum(out, floor) * outside_w
 
-    # bordas da imagem se fundem com o fundo da janela (#1e1e1e)
+    # bordas da imagem ficam transparentes: o mapa se funde com a arte do fundo da janela
     hgt, wid = out.shape[:2]
     yy, xx = np.mgrid[0:hgt, 0:wid].astype(np.float32)
-    edge = np.minimum.reduce([xx, yy, wid - 1 - xx, hgt - 1 - yy]) / (wid * 0.06)
-    fade = np.clip(edge, 0, 1)[..., None] ** 0.8
-    out = out * fade + floor * (1 - fade)
-
-    res = Image.fromarray(np.clip(out, 0, 255).astype(np.uint8)).resize((size, size), Image.LANCZOS)
-    return res.convert("RGBA")
+    edge = np.minimum.reduce([xx, yy, wid - 1 - xx, hgt - 1 - yy]) / (wid * 0.09)
+    fade = np.clip(edge, 0, 1) ** 1.2
+    # fora da ilha, um pouco translúcido; a ilha fica sólida
+    alpha = fade * (soft + (1 - soft) * 0.86)
+    rgba = np.dstack([np.clip(out, 0, 255), alpha * 255]).astype(np.uint8)
+    return Image.fromarray(rgba, "RGBA").resize((size, size), Image.LANCZOS)
 
 
 def _terrain_bg(es: int, size: int) -> Image.Image:

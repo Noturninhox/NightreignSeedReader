@@ -93,6 +93,7 @@ class Marker(QGraphicsEllipseItem):
 
 class MapView(QGraphicsView):
     marker_clicked = pyqtSignal(object, object, bool)  # key, QPoint global, botão direito
+    image_changed = pyqtSignal(bool)  # True quando há mapa
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
@@ -102,7 +103,11 @@ class MapView(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setBackgroundBrush(QColor(theme.MAP_BG))
+        # fundo transparente: a arte da janela aparece em volta do mapa
+        self.setBackgroundBrush(QBrush(Qt.BrushStyle.NoBrush))
+        self.setStyleSheet("QGraphicsView { background: transparent; border: none; }")
+        self.viewport().setAutoFillBackground(False)
+        self.ring_provider = None  # função que devolve o retângulo do anel da arte (coordenadas do viewport)
         self._pix: QGraphicsPixmapItem | None = None
         self._frame: QGraphicsRectItem | None = None
         self.markers: dict[object, Marker] = {}
@@ -120,6 +125,7 @@ class MapView(QGraphicsView):
         if img is None:
             sc.setSceneRect(QRectF())
             self.viewport().update()
+            self.image_changed.emit(False)
             return
         pm = pil_to_pixmap(img)
         self._pix = sc.addPixmap(pm)
@@ -129,6 +135,7 @@ class MapView(QGraphicsView):
         sc.setSceneRect(QRectF(-m, -m, pm.width() + 2 * m, pm.height() + 2 * m))
         if not (keep_view and old_size == pm.width()) or self._auto_fit:
             self.fit()
+        self.image_changed.emit(True)
 
     def has_image(self) -> bool:
         return self._pix is not None
@@ -182,27 +189,51 @@ class MapView(QGraphicsView):
         painter.save()
         painter.resetTransform()
         vr = self.viewport().rect()
-        c = vr.center()
-        # Brasão simples: círculo duplo dourado
+        ring = self.ring_provider() if self.ring_provider else None
+        if ring is not None and vr.contains(ring.center().toPoint()):
+            cx, top = ring.center().x(), ring.bottom() + 6
+        else:  # sem arte: desenha um anel simples
+            cx = vr.center().x()
+            r = min(vr.width(), vr.height()) * 0.18
+            cy = vr.center().y() - r * 0.5
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(QPen(QColor(theme.BORDER_HI), 2))
+            painter.drawEllipse(QPointF(cx, cy), r, r)
+            top = cy + r + 20
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        r = min(vr.width(), vr.height()) * 0.16
-        painter.setPen(QPen(QColor(theme.BORDER_HI), 1.5))
-        painter.drawEllipse(QPointF(c.x(), c.y() - r * 0.6), r, r)
-        painter.setPen(QPen(QColor(theme.BORDER), 1))
-        painter.drawEllipse(QPointF(c.x(), c.y() - r * 0.6), r * 0.82, r * 0.82)
-        painter.setPen(QColor(theme.GOLD))
-        painter.setFont(theme.title_font(20))
-        painter.drawText(
-            QRectF(vr.left(), c.y() + r * 0.6, vr.width(), 40), Qt.AlignmentFlag.AlignCenter, self.placeholder[0]
-        )
+        # título
+        painter.setPen(QColor(0, 0, 0, 160))
+        painter.setFont(theme.title_font(22, 500))
+        rect = QRectF(cx - 500, top, 1000, 44)
+        painter.drawText(rect.translated(0, 2), Qt.AlignmentFlag.AlignCenter, self.placeholder[0])
+        painter.setPen(QColor(theme.GOLD_HI))
+        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, self.placeholder[0])
+        # linha ornamental com estrela
+        fm_w = painter.fontMetrics().horizontalAdvance(self.placeholder[0])
+        y = top + 52
+        half = max(160, fm_w * 0.62)
+        from PyQt6.QtGui import QLinearGradient
+
+        for sgn in (-1, 1):
+            g = QLinearGradient(cx, y, cx + sgn * half, y)
+            g.setColorAt(0, QColor(200, 190, 255, 220))
+            g.setColorAt(1, QColor(200, 190, 255, 0))
+            painter.setPen(QPen(QBrush(g), 1.2))
+            painter.drawLine(QPointF(cx + sgn * 14, y), QPointF(cx + sgn * half, y))
+            painter.setBrush(QColor(theme.GOLD))
+            painter.setPen(Qt.PenStyle.NoPen)
+            for dx in (34, 56):
+                d = 3.2 if dx == 34 else 2.2
+                q = QPointF(cx + sgn * dx, y)
+                painter.drawPolygon([QPointF(q.x(), q.y() - d), QPointF(q.x() + d, q.y()), QPointF(q.x(), q.y() + d),
+                                     QPointF(q.x() - d, q.y())])
+        from nrseed.ui.ornate import star4
+
+        star4(painter, QPointF(cx, y), 11, QColor(theme.GOLD_HI))
+        # subtítulo em itálico
         painter.setPen(QColor(theme.MUTED))
-        f = painter.font()
-        f.setFamily(theme.BODY_FAMILY)
-        f.setPointSize(10)
-        painter.setFont(f)
-        painter.drawText(
-            QRectF(vr.left(), c.y() + r * 0.6 + 40, vr.width(), 30), Qt.AlignmentFlag.AlignCenter, self.placeholder[1]
-        )
+        painter.setFont(theme.serif_font(15))
+        painter.drawText(QRectF(cx - 500, y + 12, 1000, 34), Qt.AlignmentFlag.AlignCenter, self.placeholder[1])
         painter.restore()
 
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 from functools import lru_cache
 
 from PIL import Image, ImageDraw
-from PyQt6.QtCore import QSize, Qt, pyqtSignal
-from PyQt6.QtGui import QIcon, QPixmap
+from PyQt6.QtCore import QRectF, QSize, Qt, pyqtSignal
+from PyQt6.QtGui import QIcon, QPainter, QPixmap
 from PyQt6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -31,6 +31,7 @@ from nrseed.gamedata import (
 )
 from nrseed.ui import theme
 from nrseed.ui.mapview import pil_to_pixmap
+from nrseed.ui.ornate import draw_ornate_frame
 
 
 @lru_cache(maxsize=32)
@@ -38,7 +39,8 @@ def portrait(nl: int | None, size: int) -> QPixmap:
     icon = Image.open(nightlord_icon_path(nl)).convert("RGBA").resize((size, size), Image.LANCZOS)
     canvas = Image.new("RGBA", (size + 8, size + 8), (0, 0, 0, 0))
     d = ImageDraw.Draw(canvas)
-    d.ellipse((1, 1, size + 6, size + 6), outline=(201, 164, 92, 255), width=2)
+    d.ellipse((0, 0, size + 7, size + 7), outline=(120, 105, 210, 120), width=3)
+    d.ellipse((1, 1, size + 6, size + 6), outline=(190, 178, 255, 255), width=2)
     canvas.alpha_composite(icon, (4, 4))
     return pil_to_pixmap(canvas)
 
@@ -52,17 +54,24 @@ def terrain_thumb(es: int, size: int) -> QPixmap:
 
 
 class Card(QFrame):
+    """Painel translúcido com moldura gótica (cantos ornamentados e estrela embaixo)."""
+
     def __init__(self, title: str, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("Card")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, False)
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(14, 10, 14, 12)
+        lay.setContentsMargins(16, 12, 16, 16)
         lay.setSpacing(6)
         t = QLabel(title.upper())
         t.setObjectName("CardTitle")
-        t.setFont(theme.title_font(8, 700))
+        t.setFont(theme.title_font(10, 600))
         lay.addWidget(t)
         self.body = lay
+
+    def paintEvent(self, e):  # noqa: N802
+        p = QPainter(self)
+        draw_ornate_frame(p, QRectF(self.rect()).adjusted(1, 1, -1, -8), fill_alpha=190)
 
 
 def _label(text: str = "", obj: str = "Value", wrap: bool = True) -> QLabel:
@@ -79,13 +88,13 @@ class NightlordCard(Card):
         row = QHBoxLayout()
         row.setSpacing(12)
         self.pic = QLabel()
-        self.pic.setFixedSize(84, 84)
+        self.pic.setFixedSize(100, 100)
         row.addWidget(self.pic)
         col = QVBoxLayout()
         col.setSpacing(2)
         self.name = QLabel("—")
         self.name.setObjectName("Big")
-        self.name.setFont(theme.title_font(17, 700))
+        self.name.setFont(theme.title_font(18, 600))
         self.epithet = _label("", "Muted")
         self.note = _label("", "Night")
         col.addStretch()
@@ -98,7 +107,7 @@ class NightlordCard(Card):
         self.set(None, None)
 
     def set(self, nl: int | None, seen: int | None, known: bool = False) -> None:
-        self.pic.setPixmap(portrait(nl, 76))
+        self.pic.setPixmap(portrait(nl, 90))
         if nl is None:
             self.name.setText("Desconhecido")
             self.epithet.setText("Abra o mapa para identificar")
@@ -121,7 +130,7 @@ class SeedCard(Card):
         row = QHBoxLayout()
         self.seed = QLabel("#—")
         self.seed.setObjectName("Big")
-        self.seed.setFont(theme.title_font(34, 700))
+        self.seed.setFont(theme.title_font(36, 500))
         self.seed.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         row.addWidget(self.seed)
         row.addStretch()
