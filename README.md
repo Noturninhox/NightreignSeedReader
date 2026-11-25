@@ -1,6 +1,6 @@
 # Nightreign Seed Reader
 
-Identifica a **seed do mapa** do *Elden Ring Nightreign* sozinho, lendo a tela do jogo. Mostra o mapa completo da seed (chefes de cada dia, evento especial, fortes, igrejas, ruínas, chefes de campo, castelo…) numa janela escura no estilo do jogo, feita pra ficar aberta no **segundo monitor**.
+Identifica a **seed do mapa** do *Elden Ring Nightreign* sozinho, lendo a tela do jogo. Mostra o mapa completo da seed (chefes de cada dia, evento especial, fortes, igrejas, ruínas, chefes de campo, castelo, ponto de início e os chefes fixos das Terras Mutáveis) numa janela de visual gótico, feita pra ficar aberta no **segundo monitor**.
 
 Faz o mesmo que o [nightreign-seed-finder.com](https://nightreign-seed-finder.com/), mas sem você clicar em nada: abriu o mapa no jogo, a seed aparece.
 
@@ -68,6 +68,7 @@ Menu **☰ → Reconhecer a partir de um print…** aceita um print da tela inte
 ## Créditos e licença
 
 - Motor de reconhecimento, modelo CNN dos POIs e dados das seeds: [nightreign-overlay-helper](https://github.com/NeuraXmy/nightreign-overlay-helper) de NeuraXmy (AGPL-3.0), com dados extraídos pela comunidade (thefifthmatt e outros).
-- Fonte Cinzel: Natanael Gama (SIL Open Font License).
+- Fontes Cinzel (Natanael Gama), Inter (Rasmus Andersson) e Cormorant Garamond (Christian Thalmann): SIL Open Font License.
+- Arte de fundo da interface: Noturninhox.
 - Este projeto também é distribuído sob a **GNU AGPL-3.0** (veja `LICENSE`).
 - Projeto de fã, sem afiliação com FromSoftware ou Bandai Namco.
