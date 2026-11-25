@@ -59,6 +59,7 @@ class MapPattern:
     evpat_value: int
     evpat_flag: int
     pos_constructions: dict[Position, Construct]
+    start: int = -1  # id da posição de início (Start_190)
 
 
 @dataclass
@@ -168,6 +169,7 @@ def load_map_info(
                     day1_extra_boss=int(row[14]),
                     day2_extra_boss=int(row[15]),
                     pos_constructions={},
+                    start=int(row[3]) if row[3].strip().lstrip('-').isdigit() else -1,
                 )
             )
             for c in map_construct_dict.get(int(row[0]), []):

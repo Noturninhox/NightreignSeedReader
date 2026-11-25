@@ -30,7 +30,7 @@ from nrseed.ui.overlay import GameOverlay, RegionSelector
 from nrseed.ui.sidebar import CandidatesCard, InfoCard, ManualPanel, NightlordCard, SeedCard
 from nrseed.worker import RecognitionResult, RecognizerWorker
 
-RENDER_SIZE = 1100
+RENDER_SIZE = 1400
 STATUS_COLORS = {"ok": theme.OK, "wait": theme.WARN, "warn": theme.WARN, "err": theme.ERR}
 
 

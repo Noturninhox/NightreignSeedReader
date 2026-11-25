@@ -8,19 +8,21 @@ from pathlib import Path
 from PyQt6.QtGui import QColor, QFont, QFontDatabase, QPalette
 from PyQt6.QtWidgets import QApplication
 
-BG = "#0a0908"
-PANEL = "#12100d"
-PANEL_2 = "#1a1712"
-BORDER = "#3b3224"
-BORDER_HI = "#6e5a36"
+BG = "#161618"
+PANEL = "#1c1c1f"
+PANEL_2 = "#242428"
+BORDER = "#34343a"
+BORDER_HI = "#55555e"
 GOLD = "#c9a45c"
 GOLD_HI = "#e8c77e"
-TEXT = "#e6dcc4"
-MUTED = "#8f8570"
+TEXT = "#ececee"
+MUTED = "#9a9aa3"
 OK = "#7fb069"
 WARN = "#d9a441"
 ERR = "#c0533f"
 NIGHT = "#6f7fbf"
+PURPLE = "#8460f0"
+MAP_BG = "#1e1e1e"
 
 TITLE_FAMILY = "Cinzel"
 BODY_FAMILY = "Segoe UI" if sys.platform == "win32" else "DejaVu Sans"
@@ -57,7 +59,7 @@ QWidget {{ color: {TEXT}; }}
 QMainWindow, QWidget#root {{ background: {BG}; }}
 QToolTip {{ background: {PANEL_2}; color: {TEXT}; border: 1px solid {BORDER_HI}; padding: 4px 6px; }}
 
-#Header {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #17140f, stop:1 {BG});
+#Header {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #1f1f23, stop:1 {BG});
            border-bottom: 1px solid {BORDER}; }}
 #AppTitle {{ color: {GOLD}; }}
 #AppSub {{ color: {MUTED}; }}
@@ -72,12 +74,12 @@ QLabel#Muted {{ color: {MUTED}; font-size: 9pt; }}
 QLabel#Big {{ color: {GOLD_HI}; }}
 QLabel#Value {{ color: {TEXT}; font-size: 10pt; }}
 QLabel#Event {{ color: #d98b6a; font-size: 10pt; }}
-QLabel#Night {{ color: #a9b4e8; }}
+QLabel#Night {{ color: #b9a8ff; }}
 
 QPushButton {{ background: {PANEL_2}; border: 1px solid {BORDER}; border-radius: 4px; padding: 6px 12px; color: {TEXT}; }}
 QPushButton:hover {{ border-color: {GOLD}; color: {GOLD_HI}; }}
-QPushButton:pressed {{ background: #241f17; }}
-QPushButton:checked {{ border-color: {GOLD}; color: {GOLD_HI}; background: #2a2318; }}
+QPushButton:pressed {{ background: #2c2c31; }}
+QPushButton:checked {{ border-color: {GOLD}; color: {GOLD_HI}; background: #2e2a22; }}
 QPushButton:disabled {{ color: #5a5345; border-color: #2a241a; }}
 QPushButton#Primary {{ background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #5a4524, stop:1 #3a2c16);
                        border: 1px solid {GOLD}; color: #f6e7c1; font-weight: 600; }}
@@ -86,13 +88,13 @@ QPushButton#Tab {{ background: transparent; border: none; border-bottom: 2px sol
                    border-radius: 0; padding: 8px 14px; color: {MUTED}; }}
 QPushButton#Tab:checked {{ color: {GOLD_HI}; border-bottom: 2px solid {GOLD}; background: transparent; }}
 QPushButton#Tab:hover {{ color: {GOLD_HI}; }}
-QPushButton#Choice {{ padding: 2px; border-radius: 6px; background: #100e0b; }}
-QPushButton#Choice:checked {{ border: 2px solid {GOLD}; background: #2a2318; }}
+QPushButton#Choice {{ padding: 2px; border-radius: 6px; background: #19191c; }}
+QPushButton#Choice:checked {{ border: 2px solid {GOLD}; background: #2e2a22; }}
 
 QListWidget {{ background: transparent; border: none; outline: none; }}
 QListWidget::item {{ padding: 6px 6px; border-radius: 4px; color: {TEXT}; }}
-QListWidget::item:hover {{ background: #221d15; }}
-QListWidget::item:selected {{ background: #2e2619; color: {GOLD_HI}; border: 1px solid {BORDER_HI}; }}
+QListWidget::item:hover {{ background: #2a2a2f; }}
+QListWidget::item:selected {{ background: #332d22; color: {GOLD_HI}; border: 1px solid {GOLD}; }}
 
 QCheckBox {{ color: {TEXT}; spacing: 8px; }}
 QCheckBox::indicator {{ width: 16px; height: 16px; border: 1px solid {BORDER_HI}; border-radius: 3px; background: {BG}; }}

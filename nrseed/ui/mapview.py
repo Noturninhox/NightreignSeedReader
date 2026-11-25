@@ -102,7 +102,7 @@ class MapView(QGraphicsView):
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.setBackgroundBrush(QColor(theme.BG))
+        self.setBackgroundBrush(QColor(theme.MAP_BG))
         self._pix: QGraphicsPixmapItem | None = None
         self._frame: QGraphicsRectItem | None = None
         self.markers: dict[object, Marker] = {}
@@ -117,9 +117,6 @@ class MapView(QGraphicsView):
         if self._pix:
             sc.removeItem(self._pix)
             self._pix = None
-        if self._frame:
-            sc.removeItem(self._frame)
-            self._frame = None
         if img is None:
             sc.setSceneRect(QRectF())
             self.viewport().update()
@@ -127,8 +124,8 @@ class MapView(QGraphicsView):
         pm = pil_to_pixmap(img)
         self._pix = sc.addPixmap(pm)
         self._pix.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
-        self._frame = sc.addRect(QRectF(-1, -1, pm.width() + 2, pm.height() + 2), QPen(QColor(theme.BORDER_HI), 2))
-        m = pm.width() * 0.04
+        self._frame = None
+        m = pm.width() * 0.02
         sc.setSceneRect(QRectF(-m, -m, pm.width() + 2 * m, pm.height() + 2 * m))
         if not (keep_view and old_size == pm.width()) or self._auto_fit:
             self.fit()
