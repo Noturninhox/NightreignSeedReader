@@ -1,0 +1,7 @@
+PyQt6>=6.6
+numpy>=1.26
+opencv-python-headless>=4.9
+onnxruntime>=1.17
+Pillow>=10.0
+PyYAML>=6.0
+mss>=9.0
