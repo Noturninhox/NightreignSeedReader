@@ -27,6 +27,28 @@ CASTLE_ROOF = (328, 409)
 CASTLE_BASEMENT = (355, 409)
 CASTLE_CENTER = (340, 400)
 ROTREW_POS = {1046300590: (477, 583), 1057300590: (600, 452), 1047300590: (423, 500)}
+# Conteúdo fixo das Terras Mutáveis (igual em todas as seeds com aquele terreno; não vem nos dados
+# por seed). Posições aproximadas, a partir das descrições dos guias e do próprio mapa do jogo.
+FIXED_CONTENT: dict[int, list[tuple[tuple[int, int], str, str]]] = {
+    1: [  # Topo da Montanha
+        ((213, 203), "Favor da Montanha (cristais)", "favor"),
+        ((226, 178), "Mountaintop Ice Dragon", "boss2"),
+        ((236, 302), "Flying Dragon", "boss2"),
+        ((306, 288), "Snowfield Troll ×2", "boss1"),
+        ((252, 140), "Demi-Human Swordmaster", "boss1"),
+    ],
+    2: [  # Cratera
+        ((350, 298), "Fire Prelates", "boss1"),
+        ((380, 258), "Magma Wyrm", "boss2"),
+        ((398, 282), "Altar: arma Lendária", "favor"),
+    ],
+    5: [  # Noklateo
+        ((215, 498), "Inseto gigante", "boss1"),
+        ((150, 588), "Naturalborn of the Void", "boss2"),
+        ((132, 612), "Favor de Noklateo", "favor"),
+    ],
+}
+
 TGH_FLOOR = {1111: ("RB", 1), 1112: ("RB", 2), 1113: ("RB", 3), 1114: ("LT", 1), 1115: ("LT", 2), 1116: ("LT", 3)}
 
 # ------------------------------------------------------------------ estilo
@@ -194,6 +216,21 @@ def _place(lb: Label, w: int, h: int, k: float, size: int, taken: list) -> tuple
         order = ["day", "day_left", "above", "below"]
     else:
         order = [lb.prefer] + [c for c in ("below", "right", "left", "above", "below_right") if c != lb.prefer]
+    # posições extras mais afastadas/diagonais, usadas quando as primeiras colidem
+    far = 14 * k
+    extra = {
+        "below2": (ax - w / 2, ib[3] + gap + far),
+        "above2": (ax - w / 2, ib[1] - gap - h - far),
+        "right2": (ib[2] + gap + far, ay - h / 2),
+        "left2": (ib[0] - gap - w - far, ay - h / 2),
+        "br": (ib[2] + gap, ib[3] + gap),
+        "bl": (ib[0] - gap - w, ib[3] + gap),
+        "tr": (ib[2] + gap, ib[1] - gap - h),
+        "tl": (ib[0] - gap - w, ib[1] - gap - h),
+    }
+    cands.update(extra)
+    if lb.prefer not in ("day", "center"):
+        order += list(extra)
     best, best_score = None, None
     for i, name in enumerate(order):
         x, y = cands[name]
@@ -361,6 +398,18 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
             labels.append(Label(P((base[0], base[1] + (3 - floor) * 20)), f"{floor}º andar: {name(t)}",
                                 bg=(40, 90, 50, 225) if inside else PILL_RED, prefer="center"))
 
+    # chefes e recompensas fixos da Terra Mutável
+    fixed = FIXED_CONTENT.get(pattern.earth_shifting, [])
+    for pos, text, kind in fixed:
+        xy = P(pos)
+        if kind == "favor":
+            labels.append(Label(xy, text, bg=PILL_GOLD, prefer="center"))
+            continue
+        crest = _icon("icons/boss2.png" if kind == "boss2" else "icons/boss1.png", crest_px)
+        box = _paste_center(img, crest, xy)
+        taken.append(box)
+        labels.append(Label(xy, text, avoid=box))
+
     # bênção podre
     if pos := ROTREW_POS.get(pattern.rot_rew):
         box = _paste_center(img, _icon("icons/rot_rew.png", round(30 * k)), P(pos))
@@ -395,6 +444,10 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
         labels.append(Label((size - medal_r - 26 * k, 2 * medal_r + 62 * k),
                             "1º círculo do Dia 2: " + ("superior esquerdo" if day2_lefttop else "inferior direito"),
                             bg=(40, 90, 50, 225), prefer="center"))
+
+    if fixed:
+        note = f"Chefes fixos de {TERRAIN_PT.get(pattern.earth_shifting, '')}: posição aproximada"
+        labels.append(Label((size / 2, size - 22 * k), note, bg=(24, 24, 26, 170), fg=(200, 200, 205, 255), prefer="center"))
 
     # etiquetas: os dias e itens fixos primeiro, depois o resto evitando sobreposição
     labels.sort(key=lambda lb: {"day": 0, "center": 1}.get(lb.prefer, 2))
