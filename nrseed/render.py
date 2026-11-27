@@ -375,7 +375,7 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
                     crest = _icon("icons/boss2.png" if t in BOSS2_CTYPES else "icons/boss1.png", crest_px)
                     box = _paste_center(img, crest, (xy[0], xy[1] - 2 * k))
                     taken.append(box)
-                labels.append(Label(xy, under + n, avoid=box or icon_box))
+                labels.append(Label(xy, under + n, bg=PILL_RED, avoid=box or icon_box))
         # tipo do castelo
         if match(494) and t != 49400:
             labels.append(Label(P((pos[0] - 15, pos[1] - 32)), name(t), bg=PILL_GOLD, prefer="center"))
@@ -384,8 +384,7 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
             for _p2, c2 in pattern.pos_constructions.items():
                 if (match(536) and c2.type in (53700, 53710, 53720)) or (match(535) and c2.type in (53600, 53610)):
                     lines.append("↓ " + name(c2.type))
-            inside = bool(match(536)) ^ day2_lefttop
-            labels.append(Label(xy, "\n".join(lines), bg=(40, 90, 50, 225) if inside else PILL_RED, avoid=icon_box))
+            labels.append(Label(xy, "\n".join(lines), bg=PILL_RED, avoid=icon_box))
         # torre do feiticeiro (dica do enigma)
         if match(400, 5110):
             labels.append(Label(xy, name(t), fg=(200, 240, 190, 255), avoid=icon_box))
@@ -394,7 +393,7 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
             taken.append(_paste_center(img, _icon("icons/carriage.png", round(30 * k)), xy))
         # nome do chefe do POI
         if match(30, 32, 34, 38, 500, 501, 524, 525):
-            labels.append(Label(xy, under + name(t), avoid=icon_box, prefer="right"))
+            labels.append(Label(xy, under + name(t), bg=PILL_RED, avoid=icon_box, prefer="right"))
         # evento especial
         if 200 <= t // 100 <= 215:
             box = _paste_center(img, _icon("icons/event.png", round(40 * k)), xy)
@@ -409,9 +408,8 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
         if c.pos_index in TGH_FLOOR:
             side, floor = TGH_FLOOR[c.pos_index]
             base = (100, 280) if side == "LT" else (680, 530)
-            inside = day2_lefttop ^ (side == "RB")
             labels.append(Label(P((base[0], base[1] + (3 - floor) * 20)), f"{floor}º andar: {name(t)}",
-                                bg=(40, 90, 50, 225) if inside else PILL_RED, prefer="center"))
+                                bg=PILL_RED, prefer="center"))
 
     # chefes e recompensas fixos da Terra Mutável
     fixed = FIXED_CONTENT.get(pattern.earth_shifting, [])
@@ -423,7 +421,7 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
         crest = _icon("icons/boss2.png" if kind == "boss2" else "icons/boss1.png", crest_px)
         box = _paste_center(img, crest, xy)
         taken.append(box)
-        labels.append(Label(xy, game_name(text), avoid=box))
+        labels.append(Label(xy, game_name(text), bg=PILL_RED, avoid=box))
 
     # bênção podre
     if pos := ROTREW_POS.get(pattern.rot_rew):
