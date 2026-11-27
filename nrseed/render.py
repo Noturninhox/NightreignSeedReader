@@ -56,6 +56,8 @@ PILL_BG = (24, 24, 26, 215)
 PILL_RED = (176, 48, 44, 225)
 PILL_PURPLE = (132, 96, 240, 205)
 PILL_GOLD = (122, 92, 34, 225)
+PILL_BLUE = (44, 92, 196, 228)  # chefes de cárcere
+PILL_GREEN = (40, 90, 50, 225)
 TEXT = (245, 245, 245, 255)
 RING_PURPLE = (112, 70, 235, 255)
 RING_YELLOW = (240, 200, 40, 255)
@@ -369,13 +371,21 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
                 labels.append(Label(P((328, 392)), f"Telhado: {n}", bg=PILL_RED, prefer="center"))
             elif pos == CASTLE_BASEMENT:
                 labels.append(Label(P((362, 428)), f"Porão: {n}", bg=PILL_RED, prefer="center"))
+            elif t in BOSS1_CTYPES or t in BOSS2_CTYPES:
+                # chefe solto no mapa: crista + etiqueta vermelha
+                crest = _icon("icons/boss2.png" if t in BOSS2_CTYPES else "icons/boss1.png", crest_px)
+                box = _paste_center(img, crest, (xy[0], xy[1] - 2 * k))
+                taken.append(box)
+                labels.append(Label(xy, under + n, bg=PILL_RED, avoid=box))
             else:
-                box = None
-                if t in BOSS1_CTYPES or t in BOSS2_CTYPES:
-                    crest = _icon("icons/boss2.png" if t in BOSS2_CTYPES else "icons/boss1.png", crest_px)
-                    box = _paste_center(img, crest, (xy[0], xy[1] - 2 * k))
-                    taken.append(box)
-                labels.append(Label(xy, under + n, bg=PILL_RED, avoid=box or icon_box))
+                # chefe de cárcere (7 posições fixas, chefe varia por seed): etiqueta azul
+                jail_px = round(26 * k)
+                if overlay:
+                    box = (xy[0] - jail_px / 2, xy[1] - jail_px / 2, xy[0] + jail_px / 2, xy[1] + jail_px / 2)
+                else:
+                    box = _paste_center(img, _icon("icons/prison.png", jail_px), xy)
+                taken.append(box)
+                labels.append(Label(xy, under + n, bg=PILL_BLUE, avoid=box))
         # tipo do castelo
         if match(494) and t != 49400:
             labels.append(Label(P((pos[0] - 15, pos[1] - 32)), name(t), bg=PILL_GOLD, prefer="center"))
@@ -384,7 +394,8 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
             for _p2, c2 in pattern.pos_constructions.items():
                 if (match(536) and c2.type in (53700, 53710, 53720)) or (match(535) and c2.type in (53600, 53610)):
                     lines.append("↓ " + name(c2.type))
-            labels.append(Label(xy, "\n".join(lines), bg=PILL_RED, avoid=icon_box))
+            inside = bool(match(536)) ^ day2_lefttop
+            labels.append(Label(xy, "\n".join(lines), bg=PILL_GREEN if inside else PILL_RED, avoid=icon_box))
         # torre do feiticeiro (dica do enigma)
         if match(400, 5110):
             labels.append(Label(xy, name(t), fg=(200, 240, 190, 255), avoid=icon_box))
@@ -393,7 +404,7 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
             taken.append(_paste_center(img, _icon("icons/carriage.png", round(30 * k)), xy))
         # nome do chefe do POI
         if match(30, 32, 34, 38, 500, 501, 524, 525):
-            labels.append(Label(xy, under + name(t), bg=PILL_RED, avoid=icon_box, prefer="right"))
+            labels.append(Label(xy, under + name(t), avoid=icon_box, prefer="right"))
         # evento especial
         if 200 <= t // 100 <= 215:
             box = _paste_center(img, _icon("icons/event.png", round(40 * k)), xy)
@@ -408,8 +419,9 @@ def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size:
         if c.pos_index in TGH_FLOOR:
             side, floor = TGH_FLOOR[c.pos_index]
             base = (100, 280) if side == "LT" else (680, 530)
+            inside = day2_lefttop ^ (side == "RB")
             labels.append(Label(P((base[0], base[1] + (3 - floor) * 20)), f"{floor}º andar: {name(t)}",
-                                bg=PILL_RED, prefer="center"))
+                                bg=PILL_GREEN if inside else PILL_RED, prefer="center"))
 
     # chefes e recompensas fixos da Terra Mutável
     fixed = FIXED_CONTENT.get(pattern.earth_shifting, [])
