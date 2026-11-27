@@ -13,10 +13,10 @@ import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from nrseed.engine.detector import POI_ICONS, STD_POI_SIZE, MapDetectParam, MapDetector, get_poi_image
+from nrseed.engine.detector import POI_ICONS, STD_POI_SIZE, MapDetector, get_poi_image
 from nrseed.engine.map_info import MapPattern
 from nrseed.engine.resources import get_data_path
-from nrseed.gamedata import TERRAIN_PT
+from nrseed.gamedata import game_name, terrain_name
 from nrseed.ui.theme import asset
 
 # ------------------------------------------------------------------ constantes do jogo
@@ -43,7 +43,7 @@ FIXED_CONTENT: dict[int, list[tuple[tuple[int, int], str, str]]] = {
         ((398, 282), "Altar: arma Lendária", "favor"),
     ],
     5: [  # Noklateo
-        ((215, 498), "Inseto gigante", "boss1"),
+        ((215, 498), "Giant Insect", "boss1"),
         ((150, 588), "Naturalborn of the Void", "boss2"),
         ((132, 612), "Favor de Noklateo", "favor"),
     ],
@@ -198,7 +198,8 @@ def _overlap(a, b) -> float:
     return max(0, w) * max(0, h)
 
 
-def _place(lb: Label, w: int, h: int, k: float, size: int, taken: list) -> tuple[int, int, int, int]:
+def _place(lb: Label, w: int, h: int, k: float, size: int, taken: list, ring_k: float | None = None) -> tuple[int, int, int, int]:
+    rk = ring_k or k
     ax, ay = lb.anchor
     ib = lb.avoid or (ax, ay, ax, ay)
     gap = 2 * k
@@ -209,8 +210,8 @@ def _place(lb: Label, w: int, h: int, k: float, size: int, taken: list) -> tuple
         "above": (ax - w / 2, ib[1] - gap - h),
         "below_right": (ax - 6 * k, ib[3] - 2 * k),
         "center": (ax - w / 2, ay - h / 2),
-        "day": (ax + 24 * k * 0.82, ay - h / 2),
-        "day_left": (ax - 24 * k * 0.82 - w, ay - h / 2),
+        "day": (ax + 24 * rk * 0.82, ay - h / 2),
+        "day_left": (ax - 24 * rk * 0.82 - w, ay - h / 2),
     }
     if lb.prefer == "day":
         order = ["day", "day_left", "above", "below"]
@@ -300,6 +301,17 @@ def _day_circle(base: Image.Image, c, k: float) -> tuple:
 # ------------------------------------------------------------------ principal
 def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, size: int = 1400) -> Image.Image:
     """Imagem RGBA quadrada pronta para exibir no app."""
+    return _render(detector, pattern_id, nightlord, size, overlay=False)
+
+
+def render_overlay(detector: MapDetector, pattern_id: int, nightlord: int | None, size: int) -> Image.Image:
+    """Camada transparente para colocar por cima do mapa dentro do jogo: etiquetas, cristas dos chefes,
+    círculos dos dias e ponto de início. Os ícones dos POIs não são desenhados (o jogo já mostra)."""
+    return _render(detector, pattern_id, nightlord, size, overlay=True, label_scale=1.18)
+
+
+def _render(detector: MapDetector, pattern_id: int, nightlord: int | None, size: int, *, overlay: bool,
+            label_scale: float = 1.0) -> Image.Image:
     info = detector.info
     pattern: MapPattern | None = next((p for p in info.patterns if p.id == pattern_id), None)
     if pattern is None:
@@ -312,8 +324,8 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
     def name(i: int) -> str:
         return info.get_name(i) or str(i)
 
-    img = _island_bg(pattern.earth_shifting, size).copy()
-    d = ImageDraw.Draw(img)
+    fk = k * label_scale  # escala das etiquetas
+    img = Image.new("RGBA", (size, size), (0, 0, 0, 0)) if overlay else _island_bg(pattern.earth_shifting, size).copy()
     labels: list[Label] = []
     taken: list[tuple] = []
 
@@ -344,7 +356,10 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
         icon_box = None
         if t and c.is_display and (t // 1000 in POI_ICONS or t // 100 in POI_ICONS):
             if not c.is_underground:
-                icon_box = _paste_center(img, _poi_icon(t, poi_px), xy)
+                if overlay:
+                    icon_box = (xy[0] - poi_px / 2, xy[1] - poi_px / 2, xy[0] + poi_px / 2, xy[1] + poi_px / 2)
+                else:
+                    icon_box = _paste_center(img, _poi_icon(t, poi_px), xy)
                 taken.append(icon_box)
 
         # chefes de campo
@@ -408,7 +423,7 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
         crest = _icon("icons/boss2.png" if kind == "boss2" else "icons/boss1.png", crest_px)
         box = _paste_center(img, crest, xy)
         taken.append(box)
-        labels.append(Label(xy, text, avoid=box))
+        labels.append(Label(xy, game_name(text), avoid=box))
 
     # bênção podre
     if pos := ROTREW_POS.get(pattern.rot_rew):
@@ -432,13 +447,15 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
         labels.append(Label(c, text, bg=PILL_PURPLE, big=True, prefer="day",
                             avoid=(c[0] - r, c[1] - r, c[0] + r, c[1] + r)))
 
-    # medalhões
+    # medalhões (só no mapa do app)
     medal_r = 62 * k
+    if overlay:
+        return _finish_labels(img, labels, taken, rings, k, fk, size)
     nl_img = Image.open(get_data_path("icons/nightlord/unk.png" if nightlord is None else f"icons/nightlord/{nightlord}.png"))
     _medallion(img, nl_img, (medal_r + 26 * k, medal_r + 26 * k), medal_r, k)
     _medallion(img, _shift_crop(pattern.earth_shifting), (size - medal_r - 26 * k, medal_r + 26 * k), medal_r, k)
     taken += [(0, 0, 2 * medal_r + 52 * k, 2 * medal_r + 52 * k), (size - 2 * medal_r - 52 * k, 0, size, 2 * medal_r + 52 * k)]
-    labels.append(Label((size - medal_r - 26 * k, 2 * medal_r + 40 * k), TERRAIN_PT.get(pattern.earth_shifting, ""),
+    labels.append(Label((size - medal_r - 26 * k, 2 * medal_r + 40 * k), terrain_name(pattern.earth_shifting),
                         bg=PILL_GOLD, prefer="center"))
     if pattern.earth_shifting == 4:
         labels.append(Label((size - medal_r - 26 * k, 2 * medal_r + 62 * k),
@@ -446,10 +463,14 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
                             bg=(40, 90, 50, 225), prefer="center"))
 
     if fixed:
-        note = f"Chefes fixos de {TERRAIN_PT.get(pattern.earth_shifting, '')}: posição aproximada"
+        note = f"Chefes fixos de {terrain_name(pattern.earth_shifting)}: posição aproximada"
         labels.append(Label((size / 2, size - 22 * k), note, bg=(24, 24, 26, 170), fg=(200, 200, 205, 255), prefer="center"))
 
-    # etiquetas: os dias e itens fixos primeiro, depois o resto evitando sobreposição
+    return _finish_labels(img, labels, taken, rings, k, fk, size)
+
+
+def _finish_labels(img, labels, taken, rings, k: float, fk: float, size: int) -> Image.Image:
+    """Posiciona e desenha as etiquetas (os dias e itens fixos primeiro) e depois os anéis dos dias."""
     labels.sort(key=lambda lb: {"day": 0, "center": 1}.get(lb.prefer, 2))
     d = ImageDraw.Draw(img)
     rings_taken = False
@@ -460,10 +481,10 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
             rings_taken = True
         if not lb.text.strip():
             continue
-        w, h, lines = _pill_size(lb, k)
-        box = _place(lb, w, h, k, size, taken)
+        w, h, lines = _pill_size(lb, fk)
+        box = _place(lb, w, h, fk, size, taken, ring_k=k)
         taken.append(box)
-        _draw_pill(d, box, lb, lines, k)
+        _draw_pill(d, box, lb, lines, fk)
     for c in rings:
         _day_circle(img, c, k)
     return img
@@ -471,14 +492,6 @@ def render_seed(detector: MapDetector, pattern_id: int, nightlord: int | None, s
 
 def _start_id(pattern: MapPattern) -> int:
     return pattern.start
-
-
-def render_overlay_only(detector: MapDetector, pattern_id: int, nightlord: int | None, size: int) -> Image.Image:
-    """Somente os rótulos (transparente) — para sobrepor ao mapa dentro do jogo."""
-    res = detector.detect(
-        MapDetectParam(map_region=(0, 0, size, size), draw_pattern_ids=[pattern_id], nightlord=nightlord)
-    )
-    return res.overlay_images[0]
 
 
 _ = math  # usado em extensões futuras

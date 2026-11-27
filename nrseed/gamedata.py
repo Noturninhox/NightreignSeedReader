@@ -38,14 +38,65 @@ TERRAIN_PT: dict[int, str] = {
     5: "Noklateo, Cidade Oculta",
 }
 
+EPITHET_PT: dict[int, str] = {
+    0: "Tricéfalo",
+    1: "Mandíbula Escancarada",
+    2: "Praga Senciente",
+    3: "Áugure",
+    4: "Fera do Equilíbrio",
+    5: "Cavaleiro da Deriva Sombria",
+    6: "Fissura na Névoa",
+    7: "Aspecto da Noite",
+    8: "Equilibradores · DLC",
+    9: "Senhor da Escória · DLC",
+}
+
+# Nomes de chefes que o app escreve por conta própria (os demais vêm do arquivo de nomes do motor)
+GAME_NAMES_PT: dict[str, str] = {
+    "Mountaintop Ice Dragon": "Dragão de Gelo do Topo",
+    "Flying Dragon": "Dragão Voador",
+    "Snowfield Troll ×2": "Troll da Neve ×2",
+    "Demi-Human Swordmaster": "Espadachim Semi-humano",
+    "Fire Prelates": "Prelados do Fogo",
+    "Magma Wyrm": "Serpe de Magma",
+    "Giant Insect": "Inseto Gigante",
+    "Naturalborn of the Void": "Nascido do Vazio",
+}
+
+# Idioma dos nomes do jogo (chefes, locais, terrenos): "pt_BR" ou "en_US"
+LANG = "pt_BR"
+
+
+def set_lang(lang: str) -> None:
+    global LANG
+    LANG = "en_US" if lang == "en_US" else "pt_BR"
+
+
+def game_name(en: str) -> str:
+    return GAME_NAMES_PT.get(en, en) if LANG == "pt_BR" else en
+
+
+def epithet(nl: int) -> str:
+    if LANG == "pt_BR":
+        return EPITHET_PT.get(nl, "")
+    return NIGHTLORDS.get(nl, ("", ""))[1]
+
+
+def terrain_name(es: int, other: bool = False) -> str:
+    """Nome do terreno no idioma escolhido (other=True devolve no outro idioma)."""
+    pt = (LANG == "pt_BR") != other
+    return TERRAIN_PT.get(es, "") if pt else TERRAINS.get(es, "")
+
+
 SITE_URL = "https://nightreign-seed-finder.com/result/{:03d}"
 
 
 def nightlord_label(nl: int | None) -> str:
     if nl is None:
         return "Desconhecido"
-    name, epithet = NIGHTLORDS.get(nl, (str(nl), ""))
-    return f"{name} — {epithet}" if epithet else name
+    name = NIGHTLORDS.get(nl, (str(nl), ""))[0]
+    ep = epithet(nl)
+    return f"{name} — {ep}" if ep else name
 
 
 def nightlord_icon_path(nl: int | None) -> str:

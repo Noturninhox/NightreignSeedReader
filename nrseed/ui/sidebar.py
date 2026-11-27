@@ -22,12 +22,13 @@ from PyQt6.QtWidgets import (
 
 from nrseed.gamedata import (
     NIGHTLORDS,
-    TERRAIN_PT,
     TERRAINS,
     SeedSummary,
+    epithet,
     nightlord_icon_path,
     nightlord_label,
     terrain_icon_path,
+    terrain_name,
 )
 from nrseed.ui import theme
 from nrseed.ui.mapview import pil_to_pixmap
@@ -113,9 +114,9 @@ class NightlordCard(Card):
             self.epithet.setText("Abra o mapa para identificar")
             self.note.setText("")
             return
-        name, epi = NIGHTLORDS.get(nl, (str(nl), ""))
+        name = NIGHTLORDS.get(nl, (str(nl), ""))[0]
         self.name.setText(name)
-        self.epithet.setText(epi)
+        self.epithet.setText(epithet(nl))
         if known and seen is None:
             self.note.setText("Retrato oculto — deduzido pelo mapa")
         elif known and seen != nl:
@@ -161,8 +162,8 @@ class SeedCard(Card):
             self.conf.setText("")
             return
         self.seed.setText(f"#{s.seed_id}")
-        self.terrain.setText(TERRAINS.get(s.terrain, "?"))
-        self.terrain_pt.setText(TERRAIN_PT.get(s.terrain, ""))
+        self.terrain.setText(terrain_name(s.terrain))
+        self.terrain_pt.setText(terrain_name(s.terrain, other=True))
         self.thumb.setPixmap(terrain_thumb(s.terrain, 40))
         self.conf.setText(confidence)
 
@@ -272,13 +273,13 @@ class ManualPanel(QWidget):
         g2.setSpacing(6)
         self.es_group = QButtonGroup(self)
         for i, es in enumerate(TERRAINS):
-            b = QPushButton(TERRAINS[es])
+            b = QPushButton(terrain_name(es))
             b.setObjectName("Choice")
             b.setCheckable(True)
             b.setIcon(QIcon(terrain_thumb(es, 34)))
             b.setIconSize(QSize(34, 34))
             b.setMinimumHeight(44)
-            b.setToolTip(TERRAIN_PT[es])
+            b.setToolTip(terrain_name(es, other=True))
             b.setProperty("es", es)
             b.setStyleSheet("text-align: left; padding-left: 6px;")
             self.es_group.addButton(b, i)
@@ -311,6 +312,20 @@ class ManualPanel(QWidget):
         c3.body.addLayout(row)
         lay.addWidget(c3)
         lay.addStretch()
+
+    def retranslate(self) -> None:
+        for b in self.es_group.buttons():
+            es = b.property("es")
+            b.setText(terrain_name(es))
+            b.setToolTip(terrain_name(es, other=True))
+        self.update_counts_text()
+
+    def update_counts_text(self) -> None:
+        nl = self.nightlord()
+        self.nl_name.setText("Desconhecido (qualquer Nightlord)" if nl is None else nightlord_label(nl))
+        for b in self.nl_group.buttons():
+            v = b.property("nl")
+            b.setToolTip("Desconhecido / oculto" if v is None else nightlord_label(v))
 
     def nightlord(self) -> int | None:
         b = self.nl_group.checkedButton()

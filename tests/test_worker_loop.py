@@ -24,15 +24,26 @@ W.ScreenGrabber = FakeGrab
 assert map_rect_for_client((0, 0, 2560, 1440)) == (1454, 228, 990, 990)
 assert map_rect_for_client((0, 0, 1920, 1080)) == (1090, 171, 742, 742)
 
-w = W.RecognizerWorker(); results = []; statuses = []
+import time
+w = W.RecognizerWorker(); results = []; statuses = []; vis = []; switched = {}
+w.map_visible.connect(lambda v, r: vis.append((v, time.monotonic())))
 w.result.connect(lambda r: results.append(r.candidates[0].pattern_id if r.candidates else None))
 w.status.connect(lambda lvl, t: statuses.append(t))
 w.start()
 plan = [(0, "closed"), (1500, "262"), (5000, "closed"), (8000, "12"), (12000, "12")]
-for ms, f in plan: QTimer.singleShot(ms, lambda f=f: screen.__setitem__("now", f))
+def setf(f):
+    screen["now"] = f
+    switched.setdefault(f, []).append(time.monotonic())
+for ms, f in plan: QTimer.singleShot(ms, lambda f=f: setf(f))
 QTimer.singleShot(14000, app.quit)
 app.exec()
 print("resultados:", results)
 print("status:", " | ".join(dict.fromkeys(statuses)))
 assert results == [262, 12], results
+# atraso entre fechar o mapa e o overlay sumir
+closed_at = switched["closed"][1]
+hide = next(t for v, t in vis if not v and t > closed_at)
+delay = hide - closed_at
+print(f"overlay sumiu {delay*1000:.0f} ms depois de fechar o mapa")
+assert delay < 0.5, delay
 print("OK")

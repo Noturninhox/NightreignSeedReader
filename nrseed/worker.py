@@ -14,13 +14,15 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal, pyqtSlot
 from nrseed.capture import ScreenGrabber, find_game_window, is_foreground, map_rect_for_client
 from nrseed.engine.detector import MapDetector
 from nrseed.engine.stability import MapStability, map_stability_sample
-from nrseed.render import render_overlay_only, render_seed
+from nrseed.engine.localization import load_names
+from nrseed.render import render_overlay, render_seed
 
 log = logging.getLogger(__name__)
 
-TICK_MS = 250
+TICK_MS = 100  # 10 leituras por segundo (a checagem do mapa custa ~5 ms)
 WINDOW_REFRESH_S = 2.0
-MAP_CLOSED_GRACE_S = 1.5
+MAP_CLOSED_GRACE_S = 1.5  # para reiniciar a leitura
+HIDE_AFTER_MISSES = 2  # overlay some após 2 quadros seguidos sem mapa (~0,2 s)
 
 
 @dataclass
@@ -67,12 +69,15 @@ class RecognizerWorker(QObject):
         self._force = False
         self._last_status: tuple[str, str] | None = None
         self._visible = False
+        self._misses = 0
+        self.names_language = "pt_BR"
 
     # ---------------------------------------------------------------- ciclo de vida
     @pyqtSlot()
     def start(self) -> None:
         self._emit_status("wait", "Carregando motor de reconhecimento…")
         self.detector = MapDetector(language="pt_BR")
+        self.detector.info.name_dict = load_names(self.names_language)
         self.detector.draw_header = False
         self.grabber = ScreenGrabber()
         self.timer = QTimer()
@@ -111,6 +116,12 @@ class RecognizerWorker(QObject):
     def set_force_nightlord(self, nl) -> None:
         self.force_nightlord = nl
 
+    @pyqtSlot(str)
+    def set_names_language(self, lang: str) -> None:
+        self.names_language = lang
+        if self.detector is not None:
+            self.detector.info.name_dict = load_names(lang)
+
     @pyqtSlot(int, object, int, object)
     def render(self, pattern_id: int, nightlord, size: int, context) -> None:
         """context: 'main' (mapa completo) ou ('overlay', w) (só rótulos)."""
@@ -120,7 +131,7 @@ class RecognizerWorker(QObject):
             if context == "main":
                 img = render_seed(self.detector, pattern_id, nightlord, size)
             else:
-                img = render_overlay_only(self.detector, pattern_id, nightlord, size)
+                img = render_overlay(self.detector, pattern_id, nightlord, size)
             self.rendered.emit(pattern_id, img, context)
         except Exception:  # noqa: BLE001
             log.exception("Falha ao desenhar seed %s", pattern_id)
@@ -182,9 +193,13 @@ class RecognizerWorker(QObject):
 
         if is_full:
             self._last_full_at = now
+            self._misses = 0
             self._set_visible(True, rect)
-        elif now - self._last_full_at > MAP_CLOSED_GRACE_S:
-            self._set_visible(False, rect)
+        else:
+            self._misses += 1
+            if self._misses >= HIDE_AFTER_MISSES:
+                self._set_visible(False, rect)  # some quase na hora em que o mapa fecha
+        if not is_full and now - self._last_full_at > MAP_CLOSED_GRACE_S:
             if self._done_this_open and not self._force:
                 self._done_this_open = False  # mapa fechado: na próxima abertura lê de novo
             self.stability.reset()

@@ -21,8 +21,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
-from nrseed import __version__
-from nrseed.gamedata import NIGHTLORDS, TERRAINS, summarize
+from nrseed import __version__, gamedata
+from nrseed.engine.localization import load_names
+from nrseed.gamedata import NIGHTLORDS, summarize, terrain_name
 from nrseed.ui import theme
 from nrseed.ui.manual import ManualController
 from nrseed.ui.mapview import MapView, pil_to_pixmap
@@ -54,6 +55,7 @@ class MainWindow(QMainWindow):
     req_manual_rect = pyqtSignal(object)
     req_only_foreground = pyqtSignal(bool)
     req_stop = pyqtSignal()
+    req_names_lang = pyqtSignal(str)
 
     def __init__(self, hotkeys=None) -> None:
         super().__init__()
@@ -61,6 +63,8 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1000, 680)
         self.settings = QSettings("Noturninhox", "NightreignSeedReader")
         self.hotkeys = hotkeys
+        self.names_lang = self.settings.value("names_lang", "pt_BR")
+        gamedata.set_lang(self.names_lang)
 
         self.current_id: int | None = None
         self.current_nl: int | None = None
@@ -74,6 +78,7 @@ class MainWindow(QMainWindow):
         self._start_worker()
         self.overlay = GameOverlay()
         self.manual = ManualController(self.map_view)
+        self.manual.catalog.info.name_dict = load_names(self.names_lang)
         self.manual.counts.connect(self.manual_panel.update_counts)
         self.manual.candidates_changed.connect(self._manual_candidates)
         self.manual.found.connect(self._manual_found)
@@ -292,10 +297,12 @@ class MainWindow(QMainWindow):
         self.req_manual_rect.connect(self.worker.set_manual_rect)
         self.req_only_foreground.connect(self.worker.set_only_foreground)
         self.req_stop.connect(self.worker.stop)
+        self.req_names_lang.connect(self.worker.set_names_language)
         self.worker.ready.connect(self._worker_ready)
         self.thread.start()
 
     def _worker_ready(self) -> None:
+        self.req_names_lang.emit(self.names_lang)
         rect = self.settings.value("manual_rect")
         if rect:
             self.req_manual_rect.emit([int(x) for x in rect])
@@ -336,7 +343,7 @@ class MainWindow(QMainWindow):
         self.btn_site.setEnabled(summary.site_url is not None)
         self.btn_site.setToolTip(summary.site_url or "Seeds do DLC não têm link confirmado no site")
         self.setWindowTitle(
-            f"Seed #{pattern_id} · {NIGHTLORDS[pattern.nightlord][0]} · {TERRAINS[pattern.earth_shifting]}"
+            f"Seed #{pattern_id} · {NIGHTLORDS[pattern.nightlord][0]} · {terrain_name(pattern.earth_shifting)}"
             " — Nightreign Seed Reader"
         )
         if self.tab_group.checkedId() != 0:
@@ -419,7 +426,7 @@ class MainWindow(QMainWindow):
     def _copy(self) -> None:
         s = getattr(self, "_summary", None)
         if s:
-            text = f"Nightreign seed #{s.seed_id} — {NIGHTLORDS[s.nightlord][0]} — {TERRAINS[s.terrain]}"
+            text = f"Nightreign seed #{s.seed_id} — {NIGHTLORDS[s.nightlord][0]} — {terrain_name(s.terrain)}"
             text += f" — Dia 1: {s.day1} — Dia 2: {s.day2}"
             if s.event:
                 text += f" — Evento: {s.event}"
@@ -444,6 +451,10 @@ class MainWindow(QMainWindow):
         a_fg.setChecked(self.settings.value("only_foreground", True, type=bool))
         a_img = m.addAction("Reconhecer a partir de um print…")
         m.addSeparator()
+        a_pt = m.addAction("Nomes do jogo em português")
+        a_pt.setCheckable(True)
+        a_pt.setChecked(self.names_lang == "pt_BR")
+        m.addSeparator()
         a_about = m.addAction("Sobre / segurança")
         act = m.exec(self.btn_menu.mapToGlobal(self.btn_menu.rect().bottomLeft()))
         if act is a_cal:
@@ -464,8 +475,24 @@ class MainWindow(QMainWindow):
                     s = w / 2560  # print da tela inteira: recorta a área do mapa
                     img = img.crop((round(1454 * s), round(228 * s), round(2444 * s), round(1218 * s)))
                 self.req_recognize_image.emit(img)
+        elif act is a_pt:
+            self._set_names_lang("pt_BR" if a_pt.isChecked() else "en_US")
         elif act is a_about:
             self._about()
+
+    def _set_names_lang(self, lang: str) -> None:
+        """Troca o idioma dos nomes do jogo (chefes, locais, terrenos) e redesenha tudo."""
+        self.names_lang = lang
+        self.settings.setValue("names_lang", lang)
+        gamedata.set_lang(lang)
+        self.manual.catalog.info.name_dict = load_names(lang)
+        self.req_names_lang.emit(lang)
+        self.manual_panel.retranslate()
+        if self.current_id is not None:
+            self._show_seed(self.current_id, self.current_nl, confidence=self.seed_card.conf.text())
+        if self.tab_group.checkedId() == 1:
+            self.manual.redraw()
+        self._on_status("ok", "Nomes em português" if lang == "pt_BR" else "Names in English")
 
     def _calibrate(self) -> None:
         self._selector = RegionSelector()
@@ -509,7 +536,7 @@ class MainWindow(QMainWindow):
 
     def _manual_candidates(self, cands) -> None:
         if 1 < len(cands) <= 8:
-            self.manual_cands.set([(p.id, p.nightlord, TERRAINS[p.earth_shifting]) for p in cands], None)
+            self.manual_cands.set([(p.id, p.nightlord, terrain_name(p.earth_shifting)) for p in cands], None)
             self.manual_cands.show()
         else:
             self.manual_cands.hide()
@@ -519,7 +546,7 @@ class MainWindow(QMainWindow):
 
     def _show_manual_result(self, pattern_id: int, conf: str) -> None:
         cands = self.manual.catalog.candidates(self.manual.es, self.manual.nl, self.manual.explicit)
-        rows = [(p.id, p.nightlord, TERRAINS[p.earth_shifting]) for p in cands[:8]]
+        rows = [(p.id, p.nightlord, terrain_name(p.earth_shifting)) for p in cands[:8]]
         self.cand_card.set(rows, pattern_id)
         self.cand_card.setVisible(len(rows) > 1)
         self.last_recognition = None

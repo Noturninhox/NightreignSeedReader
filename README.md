@@ -54,7 +54,7 @@ Na aba **Busca manual**: escolha o Nightlord (ou "desconhecido"), o tipo de mapa
 
 ### Overlay no jogo (opcional)
 
-Com **F9** ligado, os nomes de chefes e locais aparecem por cima do mapa dentro do jogo. O overlay fica **invisível para capturas** (não atrapalha a próxima leitura e não vaza spoiler na live).
+Com **F9** ligado, os nomes de chefes e locais aparecem por cima do mapa dentro do jogo, nas mesmas etiquetas do mapa do app, com as cristas dos chefes, os círculos do Dia 1 e Dia 2 e o ponto de início. Ele some assim que você fecha o mapa. O overlay fica **invisível para capturas** (não atrapalha a próxima leitura e não vaza spoiler na live).
 
 ### Ler a partir de um print
 
@@ -63,7 +63,7 @@ Menu **☰ → Reconhecer a partir de um print…** aceita um print da tela inte
 ## Observações
 
 - A numeração das seeds do jogo base (0–319) é a mesma do site, então o botão "Abrir no site" leva direto à mesma seed. As seeds do DLC usam a numeração interna dos dados (1000+) e não têm link.
-- Nomes de chefes e locais aparecem em inglês, como na maioria dos guias.
+- Os nomes de chefes, locais e terrenos aparecem em **português** por padrão (tradução do app, usando os termos do Elden Ring em português quando existem). Para usar os nomes em inglês, desmarque **☰ → Nomes do jogo em português**.
 
 ## Créditos e licença
 
